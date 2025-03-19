@@ -61,7 +61,7 @@ def get_tokens():
     return jsonify({'tokens': list(bots.keys())})
 
 # API لإرسال رسالة لجميع البوتات
-@app.route('/send_message_xx', methods=['POST'])
+@app.route('/send_message', methods=['POST'])
 def send_message():
     if request.json.get('key') != SECRET_KEY:
         return jsonify({'error': 'Unauthorized'}), 401
