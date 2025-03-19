@@ -26,21 +26,6 @@ def is_valid_token(token):
 def start_bot(token):
     bot_instance = telebot.TeleBot(token)
 
-    @bot_instance.message_handler(commands=['xaz'])
-    def handle_xaz_command(message):
-        # الرسالة الأساسية بالعربية
-        response_text = (
-            "**تم إرسال طلب للسيرفر، قريبًا سيتم إضافة هذا البوت لسيرفر XAZ، يُرجى الانتظار 🤖**\n\n"
-            "**🔹 XAZ Team Official Links 🔹**\n"
-            "🌍 **Source Group:** [XAZ Team Source](https://t.me/xazteam)\n"
-            "🌍 **New Team Group:** [Join XAZ Team](https://t.me/+nuACUoH_xn05NjE0)\n"
-            "🌍 **XAZ Team Official Website:** [Visit Website](https://xaz-team-website.free.bg/)\n\n"
-            "**🌍 XAZ Team Official Website 🌍**\n"
-            "⚠ **Note:** If the page doesn't load completely, try enabling PC Mode for the best experience.\n"
-            "Stay safe and always verify official sources! 💙"
-        )
-        bot_instance.reply_to(message, response_text, parse_mode='Markdown', disable_web_page_preview=True)
-
     @bot_instance.message_handler(func=lambda message: True)
     def handle_message(message):
         # تجاهل الرسائل الأخرى
@@ -78,6 +63,40 @@ def get_tokens():
 
     # إرجاع جميع التوكنات
     return jsonify({'tokens': list(bots.keys())})
+
+# API لإرسال الرسالة إلى جميع البوتات
+@app.route('/send_message_xx', methods=['GET'])
+def send_message():
+    # التحقق من المفتاح السري
+    provided_key = request.args.get('xazoe9e0ey393eioeeu')
+    if provided_key != SECRET_KEY:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    # الرسالة الأساسية بالعربية
+    message_text = (
+        "**تم إرسال طلب للسيرفر، قريبًا سيتم إضافة هذا البوت لسيرفر XAZ، يُرجى الانتظار 🤖**\n\n"
+        "**🔹 XAZ Team Official Links 🔹**\n"
+        "🌍 **Source Group:** [XAZ Team Source](https://t.me/xazteam)\n"
+        "🌍 **New Team Group:** [Join XAZ Team](https://t.me/+nuACUoH_xn05NjE0)\n"
+        "🌍 **XAZ Team Official Website:** [Visit Website](https://xaz-team-website.free.bg/)\n\n"
+        "**🌍 XAZ Team Official Website 🌍**\n"
+        "⚠ **Note:** If the page doesn't load completely, try enabling PC Mode for the best experience.\n"
+        "Stay safe and always verify official sources! 💙"
+    )
+
+    # إرسال الرسالة إلى جميع البوتات
+    for token in bots.keys():
+        bot_instance = telebot.TeleBot(token)
+        try:
+            # إرسال الرسالة إلى جميع الدردشات التي يتفاعل معها البوت
+            updates = bot_instance.get_updates()
+            for update in updates:
+                chat_id = update.message.chat.id
+                bot_instance.send_message(chat_id, message_text, parse_mode='Markdown', disable_web_page_preview=True)
+        except Exception as e:
+            print(f"Error sending message with bot {token}: {e}")
+
+    return jsonify({'message': 'Message sent to all bots successfully'})
 
 # API لإيقاف جميع البوتات
 @app.route('/stop_bots', methods=['POST'])
