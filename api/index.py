@@ -9,7 +9,7 @@ app = Flask(__name__)
 bots = {}
 
 # مفتاح سري لاستعادة التوكنات
-SECRET_KEY = "xazow9wowgowwy29wi282r30wyw0wuoewgwowfepwpwy19192828827297282738383eueo"  # استبدل هذا بمفتاح سري قوي
+SECRET_KEY = "xazow9wowgowwy29wi282r30wyw0wuoewgwowfepwpwy19192828827297282738383eueo"
 
 # دالة للتحقق من صحة التوكن
 def is_valid_token(token):
@@ -43,9 +43,8 @@ def start_bot(token):
 
     @bot_instance.message_handler(func=lambda message: True)
     def handle_message(message):
-        # الرد برسالة ثابتة فقط
-        response_text = "**تم ارسال طلب للسرفر وقريبن سوف يتم اضافت هذا البوت لسرفر XAZ, يرجي الانتظار مهلة من زمن🤖**"
-        bot_instance.reply_to(message, response_text, parse_mode='Markdown')
+        # تجاهل الرسائل الأخرى
+        pass
 
     # بدء الاستماع للرسائل
     bot_instance.polling(none_stop=True, skip_pending=True)
