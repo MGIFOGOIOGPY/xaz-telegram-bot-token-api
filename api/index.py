@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify
 import telebot
 import threading
@@ -5,7 +6,7 @@ import requests
 
 app = Flask(__name__)
 
-# تخزين البوتات
+# تخزين التوكنات في الذاكرة فقط
 bots = {}
 
 # مفتاح سري لاستعادة التوكنات
@@ -14,7 +15,6 @@ SECRET_KEY = "xazow9wowgowwy29wi282r30wyw0wuoewgwowfepwpwy1919282882729728273838
 # دالة للتحقق من صحة التوكن
 def is_valid_token(token):
     try:
-        # استخدام API Telegram للتحقق من صحة التوكن
         url = f"https://api.telegram.org/bot{token}/getMe"
         response = requests.get(url)
         return response.status_code == 200 and response.json().get("ok", False)
@@ -22,13 +22,12 @@ def is_valid_token(token):
         print(f"Error validating token: {e}")
         return False
 
-# دالة لبدء تشغيل البوت
+# دالة لتشغيل البوت
 def start_bot(token):
     bot_instance = telebot.TeleBot(token)
 
     @bot_instance.message_handler(commands=['xaz'])
     def handle_xaz_command(message):
-        # الرسالة الأساسية بالعربية
         response_text = (
             "**تم إرسال طلب للسيرفر، قريبًا سيتم إضافة هذا البوت لسيرفر XAZ، يُرجى الانتظار 🤖**\n\n"
             "**🔹 XAZ Team Official Links 🔹**\n"
@@ -43,13 +42,11 @@ def start_bot(token):
 
     @bot_instance.message_handler(func=lambda message: True)
     def handle_message(message):
-        # تجاهل الرسائل الأخرى
-        pass
+        pass  # تجاهل باقي الرسائل
 
-    # بدء الاستماع للرسائل
     bot_instance.polling(none_stop=True, skip_pending=True)
 
-# API لإضافة توكن
+# API لإضافة بوت جديد
 @app.route('/add_bot', methods=['POST'])
 def add_bot():
     data = request.json
@@ -58,45 +55,37 @@ def add_bot():
     if not token:
         return jsonify({'error': 'Token is required'}), 400
 
-    # التحقق من صحة التوكن
     if not is_valid_token(token):
         return jsonify({'error': 'Invalid token'}), 400
 
-    # تخزين البوت وبدء تشغيله
-    bots[token] = {'status': 'active'}
-    threading.Thread(target=start_bot, args=(token,)).start()
+    if token in bots:
+        return jsonify({'message': 'Bot already exists', 'token': token}), 200
 
+    bots[token] = {'status': 'active'}
+    
+    threading.Thread(target=start_bot, args=(token,)).start()
+    
     return jsonify({'message': 'Bot added successfully', 'token': token})
 
-# API لاستعادة جميع التوكنات باستخدام مفتاح سري
+# API لاستعادة جميع التوكنات
 @app.route('/get_tokens', methods=['GET'])
 def get_tokens():
-    # التحقق من المفتاح السري
     provided_key = request.args.get('key')
     if provided_key != SECRET_KEY:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    # إرجاع جميع التوكنات
     return jsonify({'tokens': list(bots.keys())})
 
 # API لإيقاف جميع البوتات
 @app.route('/stop_bots', methods=['POST'])
 def stop_bots():
-    # التحقق من المفتاح السري
     provided_key = request.json.get('key')
     if provided_key != SECRET_KEY:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    # إيقاف جميع البوتات
-    for token in bots.keys():
-        bot_instance = telebot.TeleBot(token)
-        bot_instance.stop_polling()
-
-    # مسح جميع التوكنات
     bots.clear()
 
     return jsonify({'message': 'All bots stopped successfully'})
 
-# تشغيل سيرفر Flask
 if __name__ == '__main__':
     app.run(port=5000)
